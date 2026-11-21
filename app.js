@@ -43,9 +43,9 @@
     return t.replace(NUM, m => { const i = k++; return a[i] !== b[i] ? `<b class="${cls_}">${m}</b>` : m; });
   }
   const BADGE = { new: 'New', changed: 'Changed', removed: 'Removed', moved: 'Moved', sod: 'Season of Discovery' };
-  function badge(status, kind) {
+  function badge(status, kind, wasSod) {
     if (!status || status === 'same') return '';
-    const k = status === 'changed' && kind === 'wording' ? ' · wording' : '';
+    const k = status === 'changed' && kind === 'wording' ? ' · wording' : status === 'new' && wasSod ? ' · was in SoD' : '';
     return `<span class="bdg bdg-${status}">${BADGE[status]}${k}</span>`;
   }
 
@@ -163,10 +163,10 @@
       if (cl.ranks) rows.push(`<li class="classic-text"><span class="lbl">Classic, rank ${Math.min(Math.max(have, 1), cl.ranks.length)}</span>${marked(crank(Math.max(have, 1) - 1), n.ranks[Math.max(have, 1) - 1], 'down')}</li>`);
       classic = `<div class="classic"><div class="classic-h">Compared with Classic${cl.kind === 'wording' ? ' (wording only)' : ''}</div><ul>${rows.join('')}</ul></div>`;
     } else if (n.status === 'new') {
-      classic = `<div class="classic"><div class="classic-h">Not in Classic</div></div>`;
+      classic = `<div class="classic"><div class="classic-h">Not in Classic${n.was_sod ? ' (Season of Discovery had a version)' : ''}</div></div>`;
     }
     return `<div class="d-head">${icon(n.icon, 48)}<div><div class="d-name">${esc(n.name)}</div>
-        <div class="d-sub">${esc(cls().tabs[ti].name)} · tier ${n.tier} · ${n.active ? 'Ability' : 'Passive'}</div>${badge(n.status, cl.kind)}</div></div>
+        <div class="d-sub">${esc(cls().tabs[ti].name)} · tier ${n.tier} · ${n.active ? 'Ability' : 'Passive'}</div>${badge(n.status, cl.kind, n.was_sod)}</div></div>
       <div class="d-rank"><button class="pm" data-pm="-1" ${canRemove(n, ti) ? '' : 'disabled'}>−</button>
         <span>Rank <b>${have}</b>/${n.max}</span><button class="pm" data-pm="1" ${canAdd(n, ti) ? '' : 'disabled'}>+</button></div>
       ${blocks.length && have < n.max ? `<div class="req">${blocks.map(esc).join('<br>')}</div>` : ''}
@@ -189,7 +189,7 @@
       s.talent ? 'Talent' : '', s.classic_name ? `was ${esc(s.classic_name)}` : '',
       s.moved_to ? `now ${esc(s.moved_to)}` : ''].filter(Boolean).join(' · ');
     return `<button class="sp ${removed ? 'sp-rm' : ''}" data-spell="${removed ? 'r' : 's'}${i}">${icon(s.icon, 36, removed ? 'faded' : '')}
-      <span class="sp-main"><span class="sp-name">${esc(s.name)}</span><span class="sp-sub">${sub}</span></span>${badge(s.status, rankKind(s))}</button>`;
+      <span class="sp-main"><span class="sp-name">${esc(s.name)}</span><span class="sp-sub">${sub}</span></span>${badge(s.status, rankKind(s), s.was_sod)}</button>`;
   }
   // a group whose every change is wording only reads as 'wording'
   function rankKind(s) {
@@ -223,13 +223,14 @@
   }
   function spellDetail(s, removed) {
     const ranks = [...s.ranks].reverse();
+    const sodNote = s.was_sod ? 'Not in vanilla Classic; Season of Discovery had a version.' : '';
     const note = removed ? (s.status === 'moved' ? `Now taught under ${esc(s.moved_to)}` :
       s.in_client ? 'Still in the game files, but nothing teaches it' : 'Not in Forever') :
-      s.status === 'sod' ? 'Same as in Season of Discovery. It ships in the Forever files; the files alone do not show whether a trainer teaches it.' : '';
+      s.status === 'sod' ? 'Same as in Season of Discovery. It ships in the Forever files; the files alone do not show whether a trainer teaches it.' : sodNote;
     return `<div class="d-head">${icon(s.icon, 48, removed ? 'faded' : '')}<div><div class="d-name">${esc(s.name)}</div>
       <div class="d-sub">${esc(s.school)}${s.talent ? ' · from a talent' : ''}${s.classic_name ? ` · Classic name: ${esc(s.classic_name)}` : ''}</div>
-      ${badge(s.status, rankKind(s))}</div></div>
-      ${note ? `<div class="req">${note}</div>` : ''}
+      ${badge(s.status, rankKind(s), s.was_sod)}</div></div>
+      ${note ? `<div class="req note">${note}</div>` : ''}
       ${ranks.map(r => rankBlock(r, false)).join('')}
       ${(s.removed_ranks || []).map(r => rankBlock(r, true)).join('')}`;
   }

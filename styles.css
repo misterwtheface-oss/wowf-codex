@@ -95,6 +95,7 @@ b.down { color: var(--removed); font-weight: 700; }
 .d-rank { display: flex; align-items: center; justify-content: center; gap: 18px; padding: 6px; margin-bottom: 8px; background: var(--panel2); border-radius: 8px; }
 .pm { width: 44px; height: 36px; border-radius: 8px; background: #000; box-shadow: inset 0 0 0 1px var(--line); font-size: 20px; text-align: center; }
 .req { font-size: 13px; color: var(--removed); margin-bottom: 8px; }
+.req.note { color: var(--muted); }
 .d-text { margin: 8px 0; font-size: 14px; }
 .lbl { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 2px; }
 .classic { margin-top: 12px; padding: 8px 10px; border-radius: 8px; background: #0006; box-shadow: inset 0 0 0 1px var(--line); font-size: 13px; }
