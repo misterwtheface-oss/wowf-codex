@@ -34,9 +34,11 @@
     return `<i class="ic ${extra}" style="width:${size}px;height:${size}px;background-image:url('${sh.src}');` +
       `background-size:${sh.cols * size}px ${sh.rows * size}px;background-position:-${x}px -${y}px"></i>`;
   }
-  // game text: colour codes, inline textures and line breaks
-  const clean = t => esc(String(t || '').replace(/\|c[0-9a-fA-F]{8}|\|cn[A-Z_]+:|\|r/g, '').replace(/\|T[^|]*\|t/g, ''))
-    .replace(/\n/g, '<br>');
+  // game text: colour codes (case-insensitive: |cffffd100 ... |r, |CFFFFFFFF ... |R; a coloured run reads as a
+  // highlight), inline textures and line breaks
+  const clean = t => esc(String(t || '').replace(/\|T[^|]*\|t/g, ''))
+    .replace(/\|c(?:[0-9a-f]{8}|n[A-Z_]+:)(.*?)\|r/gi, '<b class="hl">$1</b>')
+    .replace(/\|c[0-9a-f]{8}|\|cn[A-Z_]+:|\|r/gi, '').replace(/\n/g, '<br>');
   const NUM = /\d+(?:\.\d+)?/g;
   // mark the numbers of `text` that differ from the same-position numbers of `other`
   function marked(text, other, cls_ = 'up') {

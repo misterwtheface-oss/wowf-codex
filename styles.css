@@ -49,6 +49,7 @@ button:disabled { opacity: .35; cursor: default; }
 .tag { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 4px; margin: 4px 4px 0 0; background: var(--panel2); color: var(--muted); }
 .tag.fit-strong { background: #3a3114; color: var(--gold); }
 b.up { color: var(--new); font-weight: 700; }
+b.hl { color: #fff; font-weight: 600; }
 b.down { color: var(--removed); font-weight: 700; }
 
 /* talents */
