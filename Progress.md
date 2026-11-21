@@ -21,11 +21,17 @@ benefits the class. Later: saved builds and equipment.
   wraps (info sheet was cut off), same-tier column moves not a change, tooltips never show raw tokens (single-effect
   fallback: Contingency Plan; character-stat formulas = fixed part + "(+ attack power)"), new entries labelled by origin
   ("from TBC / Wrath / Cata / MoP", then retail "WoD/Legion / BfA / Shadowlands / Dragonflight / The War Within / Midnight" by same-name class spell or talent in that client; "was in SoD" only as fallback).
-- Data: extract `tools/build_codex.py` (+ Classic baseline `tools/fetch_classic.py`, wago.tools CSV of the pinned
+- 2026-11-20: Professions (top switch Classes / Professions; data in `professions.js`, loaded on first open). 13
+  professions (Comprehension new). Recipes grouped by Forever's recipe categories, search by recipe / result / reagent,
+  filters as Spells. Each recipe: result item (type, level, stats, use text), reagents, tools, skill-up colours (orange
+  = recipe item's skill), cast time, recipe items that teach it; diff vs Classic (name, result, reagents, skill-ups,
+  text, tools); recipes that changed profession marked Moved (healing potions Alchemy -> First Aid); Forever's parked
+  "Season of Discovery" recipe groups shown last. Legacy view: the Legacy Professions tree (read-only, ranks + gates).
+- Data: extract `tools/build_codex.py` (professions: `tools/build_professions.py`) (+ Classic baseline `tools/fetch_classic.py`, wago.tools CSV of the pinned
   Classic Era build, decoded by the same `build_spells.py` with `WOWF_DATASET=classic`). App build: `python tools/build_data.py --strict`.
 
 ## Open
-- [ ] Next (user, 2026-11-21): professions section.
+- [ ] Professions: crafted-item stats not compared with Classic (no Classic item data yet); trainer recipes' learn skill is server-side.
 - [ ] Saved builds (named, several per class) and a share link.
 - [ ] Equipment (items.json in the extract: 24,736 items, sets, suffixes).
 - [ ] Talent gate rule assumed Classic-style (points in the tiers above the node); confirm in game.

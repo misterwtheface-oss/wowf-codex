@@ -143,6 +143,33 @@ b.down { color: var(--removed); font-weight: 700; }
 .ap { font-weight: 400; font-size: 11px; color: var(--muted); margin-left: 4px; }
 .racials .removed-h { margin: 8px 4px 0; }
 
+/* professions */
+.modes { display: flex; gap: 2px; padding: 6px 6px 0; }
+.mode { flex: 1; text-align: center; padding: 5px 8px; border-radius: 8px; font-size: 13px; color: var(--muted); }
+.mode.on { background: var(--panel2); color: var(--gold); box-shadow: inset 0 0 0 1px var(--line); }
+.cls.prof span { color: var(--text); }
+.p-desc { margin: 2px 0 8px; font-size: 13px; color: var(--muted); }
+.p-desc .bdg { margin: 0 4px 0 0; }
+.search { width: 100%; margin: 6px 0 2px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font: inherit; }
+.rc .sp-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; }
+.sk { display: inline-block; font-size: 12px; font-weight: 600; min-width: 22px; }
+.sk s { margin-left: 3px; font-weight: 400; color: var(--removed); }
+.sk-o { color: #ff8040; } .sk-y { color: #ffff00; } .sk-g { color: #40c040; } .sk-x { color: #9d9d9d; }
+.sks { display: flex; gap: 10px; font-size: 14px; }
+.sks .sk { font-size: 14px; }
+.x { color: var(--muted); font-weight: 400; }
+.rg { list-style: none; margin: 2px 0; padding: 0; display: grid; gap: 3px; }
+.rg li { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.rg-old li { font-size: 13px; opacity: .8; }
+.item { margin: 4px 0 8px; padding: 8px 10px; border-radius: 8px; background: #0006; box-shadow: inset 0 0 0 1px var(--line); font-size: 13px; }
+.item-h { display: flex; gap: 8px; align-items: flex-start; }
+.item-n { font-weight: 600; font-size: 14px; }
+.item-st { margin-top: 6px; }
+.item-use { margin-top: 6px; color: var(--new); }
+.item-fl { margin-top: 6px; color: var(--gold); }
+.tree.legacy { max-width: 420px; margin: 0 auto; background: var(--panel); }
+.tree.legacy .tree-head.on { display: flex; justify-content: center; font-weight: 600; color: var(--gold); }
+
 /* phone sheet */
 .sheet { position: fixed; inset: 0; z-index: 50; background: #000a; display: flex; align-items: flex-end; overscroll-behavior: contain; }
 .sheet-panel { position: relative; width: 100%; height: 72vh; height: 72dvh; max-width: 100vw; overflow-wrap: anywhere; overflow-y: auto; overscroll-behavior: contain; background: var(--panel);
@@ -152,7 +179,7 @@ b.down { color: var(--removed); font-weight: 700; }
 /* wider screens: detail panel at the side, all three trees at once */
 @media (min-width: 900px) {
   .layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 12px; align-items: start; }
-  .detail { display: block; position: sticky; top: 112px; max-height: calc(100vh - 124px); overflow-y: auto; overscroll-behavior: contain;
+  .detail { display: block; position: sticky; top: 146px; max-height: calc(100vh - 158px); overflow-y: auto; overscroll-behavior: contain;
     background: var(--panel); border-radius: 10px; padding: 14px; box-shadow: inset 0 0 0 1px var(--line); }
   .sheet { display: none !important; }
   .sp-list { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }

@@ -1,10 +1,13 @@
-/* WoW Forever Codex: classes (talent calculator, spell list, races and racials), every entry compared with Classic Era. */
+/* WoW Forever Codex: classes (talent calculator, spell list, races and racials) and professions (recipes, Legacy
+   Professions tree), every entry compared with Classic Era. Profession data (professions.js) loads on first use. */
 (() => {
   'use strict';
   const X = window.CODEX;
   const FEATURES = {};
   const KEY = 'wowf-codex-v1';
   const VIEWS = [['talents', 'Talents'], ['spells', 'Spells'], ['races', 'Races']];
+  const PVIEWS = [['recipes', 'Recipes'], ['legacy', 'Legacy']];
+  const MODES = [['classes', 'Classes'], ['prof', 'Professions']];
   const CLS = Object.fromEntries(X.classes.map(c => [c.token, c]));
   const RACE = Object.fromEntries(X.races.map(r => [r.id, r]));
   const CLASS_BY_ID = Object.fromEntries(X.classes.map(c => [c.id, c]));
@@ -13,10 +16,12 @@
   const wide = () => matchMedia('(min-width: 900px)').matches;
 
   // ------------------------------------------------------------------ state
-  const S = Object.assign({ cls: X.classes[0].token, view: 'talents', tab: 0, pts: {}, race: {}, filter: 'all' },
+  const S = Object.assign({ cls: X.classes[0].token, view: 'talents', tab: 0, pts: {}, race: {}, filter: 'all',
+    mode: 'classes', prof: null, pview: 'recipes', pfilter: 'all' },
     JSON.parse(localStorage.getItem(KEY) || '{}'));
   if (!CLS[S.cls]) S.cls = X.classes[0].token;
   let sel = null; // {kind, id}
+  let P = null, query = ''; // window.PROF once loaded; recipe search text (not saved)
   const save = () => localStorage.setItem(KEY, JSON.stringify(S));
   const cls = () => CLS[S.cls];
   const pts = () => (S.pts[S.cls] ||= {});
@@ -43,10 +48,11 @@
     return t.replace(NUM, m => { const i = k++; return a[i] !== b[i] ? `<b class="${cls_}">${m}</b>` : m; });
   }
   const BADGE = { new: 'New', changed: 'Changed', removed: 'Removed', moved: 'Moved', sod: 'Season of Discovery' };
+  const KIND = { wording: ' · wording', skill: ' · skill-ups' };
   // x: the entry (origin = later expansion it was backported from; was_sod = only Season of Discovery had it)
   function badge(status, kind, x) {
     if (!status || status === 'same') return '';
-    const k = status === 'changed' && kind === 'wording' ? ' · wording' :
+    const k = status === 'changed' && KIND[kind] ? KIND[kind] :
       status === 'new' && x?.origin ? ` · from ${x.origin}` : status === 'new' && x?.was_sod ? ' · was in SoD' : '';
     return `<span class="bdg bdg-${status}">${BADGE[status]}${k}</span>`;
   }
@@ -88,16 +94,22 @@
   }
 
   // ------------------------------------------------------------------ chrome
+  function renderModes() {
+    $('modes').innerHTML = MODES.map(([k, l]) => `<button class="mode ${S.mode === k ? 'on' : ''}" data-mode="${k}">${l}</button>`).join('');
+  }
   function renderClasses() {
+    if (S.mode === 'prof') return renderProfs();
     $('classes').innerHTML = X.classes.map(c =>
       `<button class="cls ${c.token === S.cls ? 'on' : ''}" data-cls="${c.token}" style="--cc:${c.color}" title="${esc(c.name)}">` +
       `${icon(c.icon, 30)}<span>${esc(c.name)}</span></button>`).join('');
     document.documentElement.style.setProperty('--cc', cls().color);
   }
   function renderViews() {
-    $('views').innerHTML = VIEWS.map(([k, l]) => `<button class="view ${S.view === k ? 'on' : ''}" data-view="${k}">${l}</button>`).join('');
+    const [list, cur] = S.mode === 'prof' ? [PVIEWS, S.pview] : [VIEWS, S.view];
+    $('views').innerHTML = list.map(([k, l]) => `<button class="view ${cur === k ? 'on' : ''}" data-view="${k}">${l}</button>`).join('');
   }
   function renderSummary() {
+    if (S.mode === 'prof') { $('summary').innerHTML = ''; return; }
     const c = cls(), t = total(), race = RACE[S.race[S.cls]];
     // level needed for t points: Legacy Talented ranks hand out the first points earlier, then one per level
     const tal = c.talented.slice(0, S.talented || 0);
@@ -287,9 +299,145 @@
         `<li><b>${o.classes.map(id => esc(CLASS_BY_ID[id].name)).join(', ') || 'Other classes'}</b>: ${clean(o.desc)}</li>`).join('')}</ul></div>` : ''}`;
   }
 
+  // ------------------------------------------------------------------ professions (data from professions.js)
+  const QUALITY = ['#9d9d9d', '#ffffff', '#1eff00', '#0070dd', '#a335ee', '#ff8000', '#e6cc80', '#00ccff'];
+  const prof = () => P.professions.find(p => p.id === S.prof) || P.professions[0];
+  const item = id => P.items[id] || { n: `Item ${id}`, q: 1, i: null };
+  const qc = id => QUALITY[item(id).q] || QUALITY[1];
+  function loadProf(done) {
+    if (P) return done();
+    const sc = document.createElement('script');
+    sc.src = X.prof_src;
+    sc.onload = () => { P = window.PROF; X.sheets.push(...P.sheets); done(); };
+    sc.onerror = () => { $('main').innerHTML = '<p class="empty">Professions could not load. Check the connection and reload.</p>'; };
+    document.head.appendChild(sc);
+  }
+  function renderProfs() {
+    if (!P) { $('classes').innerHTML = ''; return; }
+    if (!P.professions.some(p => p.id === S.prof)) S.prof = P.professions[0].id;
+    $('classes').innerHTML = P.professions.map(p =>
+      `<button class="cls prof ${p.id === S.prof ? 'on' : ''}" data-prof="${p.id}" title="${esc(p.name)}">` +
+      `${icon(p.icon, 28)}<span>${esc(p.name)}</span></button>`).join('');
+    document.documentElement.style.setProperty('--cc', 'var(--gold)');
+  }
+  // skill-up colours: orange from the skill that teaches it (item-taught only), yellow, green (midpoint), grey
+  function skillChips(r, old) {
+    const [y, g] = r.skill;
+    if (!y && !g) return '';
+    const mid = s => Math.floor((s[0] + s[1]) / 2);
+    const one = (cls_, v, o) => `<span class="sk ${cls_}">${v}${o != null && o !== v ? `<s>${o}</s>` : ''}</span>`;
+    return (r.learn ? one('sk-o', r.learn) : '') + one('sk-y', y, old?.[0]) + one('sk-g', mid(r.skill), old && mid(old)) + one('sk-x', g, old?.[1]);
+  }
+  const itemName = (id, n) => `<span style="color:${qc(id)}">${esc(item(id).n)}</span>${n > 1 ? ` <span class="x">×${n}</span>` : ''}`;
+  function recipeRow(r, i, removed) {
+    const sub = removed ? (r.status === 'moved' ? `now ${esc(r.moved_to)}` : '') :
+      [r.moved_from ? `was ${esc(r.moved_from)}` : '', r.classic?.name ? `was ${esc(r.classic.name)}` : ''].filter(Boolean).join(' · ');
+    const name = r.creates ? `<span style="color:${qc(r.creates)}">${esc(r.name)}</span>` : esc(r.name);
+    return `<button class="sp rc ${removed ? 'sp-rm' : ''}" data-recipe="${removed ? 'r' : 's'}${i}">${icon(r.icon, 36, removed ? 'faded' : '')}
+      <span class="sp-main"><span class="sp-name">${name}</span><span class="sp-sub">${skillChips(r)}${sub ? ` <span>${sub}</span>` : ''}</span></span>${badge(r.moved_from ? 'moved' : r.status, r.kind, r)}</button>`;
+  }
+  function matches(r) {
+    if (!query) return true;
+    const q = query.toLowerCase(), has = t => String(t || '').toLowerCase().includes(q);
+    return has(r.name) || (r.creates && has(item(r.creates).n)) || r.reagents.some(([id]) => has(item(id).n));
+  }
+  function recipeList() {
+    const p = prof(), f = S.pfilter, rm = f === 'removed';
+    const src = rm ? p.removed : p.recipes;
+    const groups = {};
+    src.forEach((r, i) => { if ((rm || f === 'all' || r.status === f) && matches(r)) (groups[r.cat || 'Other'] ||= []).push([r, i]); });
+    const order = Object.keys(groups).sort((a, b) => (a === 'Season of Discovery') - (b === 'Season of Discovery') || a.localeCompare(b));
+    return order.map(g => `<h3 class="sp-h">${esc(g)}</h3><div class="sp-list">${groups[g].map(([r, i]) => recipeRow(r, i, rm)).join('')}</div>`).join('') ||
+      '<p class="empty">None</p>';
+  }
+  function renderRecipes() {
+    const p = prof(), f = S.pfilter;
+    const chips = `<nav class="chips">${FILTERS.map(([k, l]) => `<button class="chip ${f === k ? 'on' : ''}" data-filter="${k}">${l}</button>`).join('')}</nav>`;
+    const head = p.new || p.desc ? `<p class="p-desc">${p.new ? badge('new').replace('New', 'New profession') + ' ' : ''}${esc(p.desc)}</p>` : '';
+    return head + chips + `<input class="search" id="psearch" type="search" placeholder="Search recipes, results, reagents" value="${esc(query)}">` +
+      `<div id="plist">${recipeList()}</div>`;
+  }
+  function reagentList(list, old) {
+    return `<ul class="rg">${list.map(([id, n]) => `<li>${icon(item(id).i, 24)}${itemName(id, n)}</li>`).join('')}</ul>` +
+      (old ? `<div class="d-text classic-text"><span class="lbl">Classic reagents</span><ul class="rg rg-old">${old.map(([id, n]) =>
+        `<li>${icon(item(id).i, 20, 'faded')}${itemName(id, n)}</li>`).join('')}</ul></div>` : '');
+  }
+  function itemBlock(id, n) {
+    const it = item(id), d = it.d || {};
+    const lines = [d.type, d.ilvl ? `Item level ${d.ilvl}` : '', d.req ? `Requires level ${d.req}` : '', d.armor ? `${d.armor} Armor` : '']
+      .filter(Boolean).map(t => `<div>${esc(t)}</div>`).join('');
+    return `<div class="item"><div class="item-h">${icon(it.i, 36)}<div><div class="item-n" style="color:${qc(id)}">${esc(it.n)}${n > 1 ? ` <span class="x">×${n}</span>` : ''}</div>
+      <div class="d-sub">${lines}</div></div></div>
+      ${d.stats ? `<div class="item-st" title="Stat amounts derived from the item budget">${d.stats.map(esc).join('<br>')}</div>` : ''}
+      ${(d.use || []).map(u => `<div class="item-use">${clean(u)}</div>`).join('')}
+      ${d.flavor ? `<div class="item-fl">"${clean(d.flavor)}"</div>` : ''}</div>`;
+  }
+  function recipeDetail(r, removed) {
+    const p = prof(), cl = r.classic || {};
+    const notes = [];
+    if (removed) notes.push(r.status === 'moved' ? `Now made with ${esc(r.moved_to)}.` : r.in_client ? 'Still in the game files, but nothing teaches it.' : 'Not in Forever.');
+    if (r.moved_from) notes.push(`A ${esc(r.moved_from)} recipe in Classic.`);
+    if (r.parked) notes.push('Forever files this under its Season of Discovery recipe group.');
+    if (r.status === 'new' && !r.parked) notes.push(`Not in Classic${r.origin ? `; ${esc(p.name)} in ${esc(r.origin)} had a recipe of this name` : r.was_sod ? '; Season of Discovery had a version' : ''}.`);
+    if (r.status === 'sod') notes.push('Same as in Season of Discovery; vanilla Classic did not have it.');
+    const facts = [`<span class="fact ${'cast' in cl ? 'diff' : ''}">${esc(r.cast)} cast${'cast' in cl ? `<s>${esc(cl.cast)}</s>` : ''}</span>`];
+    if (r.tools || cl.tools) facts.push(`<span class="fact ${'tools' in cl ? 'diff' : ''}">Tools: ${esc((r.tools || []).join(', ') || 'none')}${'tools' in cl ? `<s>${esc(cl.tools.join(', ') || 'none')}</s>` : ''}</span>`);
+    const sk = skillChips(r, cl.skill);
+    const rows = [];
+    if (cl.name) rows.push(`<li>Was <b>${esc(cl.name)}</b></li>`);
+    if (cl.creates) rows.push(`<li>Made ${cl.creates[0] ? itemName(cl.creates[0], cl.creates[1]) : 'no item'}</li>`);
+    if (cl.skill) rows.push(`<li>Skill-ups were ${cl.skill[0]} / ${Math.floor((cl.skill[0] + cl.skill[1]) / 2)} / ${cl.skill[1]}</li>`);
+    if ('desc' in cl) rows.push(`<li class="classic-text"><span class="lbl">Classic text</span>${marked(cl.desc, r.desc, 'down')}</li>`);
+    return `<div class="d-head">${icon(r.icon, 48, removed ? 'faded' : '')}<div><div class="d-name">${esc(r.name)}</div>
+        <div class="d-sub">${esc(p.name)} · ${esc(r.cat || 'Other')}</div>${badge(r.status, r.kind, r)}</div></div>
+      ${notes.length ? `<div class="req note">${notes.join(' ')}</div>` : ''}
+      ${r.creates ? itemBlock(r.creates, r.count) : ''}
+      ${r.desc ? `<div class="d-text">${marked(r.desc, cl.desc)}</div>` : ''}
+      ${r.reagents.length || cl.reagents ? `<div class="d-text"><span class="lbl">Reagents</span>${reagentList(r.reagents, cl.reagents)}</div>` : ''}
+      ${sk ? `<div class="d-text"><span class="lbl">Skill-ups</span><div class="sks">${sk}</div></div>` : ''}
+      <div class="facts">${facts.join('')}</div>
+      ${r.taught_by ? `<div class="d-text"><span class="lbl">Taught by</span><ul class="rg">${r.taught_by.map(id =>
+        `<li>${icon(item(id).i, 24)}${itemName(id)}</li>`).join('')}</ul></div>` : ''}
+      ${r.auto ? '<div class="d-text"><span class="lbl">Taught by</span>Learned with the profession</div>' : ''}
+      ${rows.length && !removed ? `<div class="classic"><div class="classic-h">Compared with Classic${r.kind === 'wording' ? ' (wording only)' : ''}</div><ul>${rows.join('')}</ul></div>` : ''}`;
+  }
+
+  // Legacy Professions tree: read-only map of the nodes (all new in Forever)
+  function renderLegacy() {
+    const t = P.legacy, nodes = t.nodes;
+    const cols = Math.max(...nodes.map(n => n.col)), rows = Math.max(...nodes.map(n => n.row));
+    const W = cols * NODE + (cols - 1) * GAP_X * 2, H = rows * NODE + (rows - 1) * GAP_Y * 2;
+    const X0 = n => (n.col - 1) * (NODE + GAP_X * 2), Y0 = n => (n.row - 1) * (NODE + GAP_Y * 2);
+    const nb = Object.fromEntries(nodes.map(n => [n.id, n]));
+    const lines = nodes.flatMap(n => n.prereq.map(p => nb[p]).filter(Boolean).map(q =>
+      `<path d="M${X0(q) + NODE / 2} ${Y0(q) + NODE / 2}L${X0(n) + NODE / 2} ${Y0(n) + NODE / 2}"/>`)).join('');
+    const btns = nodes.map(n => `<button class="node ${n.placeholder ? 'locked' : 'avail'} ${sel && sel.kind === 'lnode' && sel.id === n.id ? 'sel' : ''}" data-lnode="${n.id}"
+      style="left:${X0(n)}px;top:${Y0(n)}px" aria-label="${esc(n.name)}">${icon(n.icon, NODE - 4)}<span class="rk">${n.max}</span></button>`).join('');
+    return `<div class="tree legacy"><div class="tree-head on">${esc(t.name)}</div>
+      <div class="grid" style="width:${W}px;height:${H}px"><svg width="${W}" height="${H}">${lines}</svg>${btns}</div></div>`;
+  }
+  function legacyDetail(n) {
+    const nb = Object.fromEntries(P.legacy.nodes.map(x => [x.id, x]));
+    const req = [n.gate ? `Requires ${n.gate} points spent in the ${esc(P.legacy.name)} tree` : '',
+      ...n.prereq.map(p => `Requires ${esc(nb[p]?.name)}`)].filter(Boolean);
+    return `<div class="d-head">${icon(n.icon, 48, n.placeholder ? 'faded' : '')}<div><div class="d-name">${esc(n.placeholder ? 'Locked' : n.name)}</div>
+        <div class="d-sub">Legacy · ${esc(P.legacy.name)} · ${n.max} ${n.max > 1 ? 'ranks' : 'rank'}</div>${badge('new')}</div></div>
+      ${req.length ? `<div class="req note">${req.join('<br>')}</div>` : ''}
+      ${n.ranks.map((t, i) => `<div class="d-text">${n.ranks.length > 1 ? `<span class="lbl">Rank ${i + 1}</span>` : ''}${marked(t, i ? n.ranks[i - 1] : null)}</div>`).join('')}
+      <div class="classic"><div class="classic-h">Not in Classic: the Legacy System is new in Forever</div></div>`;
+  }
+
   // ------------------------------------------------------------------ detail (side panel on wide screens, sheet on phones)
   function detailHTML() {
     if (!sel) return '';
+    if (sel.kind === 'recipe') {
+      const rm = sel.id[0] === 'r', r = (rm ? prof().removed : prof().recipes)[+sel.id.slice(1)];
+      return r ? recipeDetail(r, rm) : '';
+    }
+    if (sel.kind === 'lnode') {
+      const n = P.legacy.nodes.find(x => x.id === sel.id);
+      return n ? legacyDetail(n) : '';
+    }
     const c = cls();
     if (sel.kind === 'talent') {
       const ti = tabOf(c)[sel.id];
@@ -314,7 +462,7 @@
     const html = detailHTML();
     if (wide()) {
       const el = $('detail'), top = el.scrollTop;
-      el.innerHTML = html || `<div class="d-empty">${esc(cls().name)}</div>`;
+      el.innerHTML = html || `<div class="d-empty">${esc(S.mode === 'prof' ? (P ? prof().name : '') : cls().name)}</div>`;
       el.scrollTop = top;
       closeSheet(true);
     } else {
@@ -348,13 +496,20 @@
   function renderMain() {
     const y = scrollY, m = $('main');
     const trees = [...m.querySelectorAll('.tree-wrap')].map(e => e.scrollLeft);
+    if (S.mode === 'prof') {
+      m.className = 'main v-' + S.pview;
+      m.innerHTML = !P ? '<p class="empty">Loading…</p>' : S.pview === 'legacy' ? renderLegacy() : renderRecipes();
+      scrollTo(0, y);
+      return;
+    }
     m.className = 'main v-' + S.view;
     m.innerHTML = S.view === 'talents' ? renderTalents() : S.view === 'spells' ? renderSpells() : renderRaces();
     m.querySelectorAll('.tree-wrap').forEach((e, i) => { e.scrollLeft = trees[i] || 0; });
     scrollTo(0, y);
   }
   function render() {
-    renderClasses(); renderViews(); renderSummary(); renderMain(); renderDetail();
+    renderModes(); renderClasses(); renderViews(); renderSummary(); renderMain(); renderDetail();
+    if (S.mode === 'prof' && !P) loadProf(render);
   }
 
   // ------------------------------------------------------------------ events
@@ -363,10 +518,14 @@
     if (!t) return;
     const d = t.dataset;
     if (t.id === 'sheet') { if (e.target === t) { sel = null; closeSheet(); renderMain(); } return; }
+    if (d.mode) { S.mode = d.mode; sel = null; save(); closeSheet(); render(); return; }
     if (d.cls) { S.cls = d.cls; S.tab = Math.min(S.tab, 2); sel = null; save(); closeSheet(); render(); return; }
-    if (d.view) { S.view = d.view; sel = null; save(); closeSheet(); render(); return; }
+    if (d.prof) { S.prof = +d.prof; query = ''; sel = null; save(); closeSheet(); render(); return; }
+    if (d.view) { S[S.mode === 'prof' ? 'pview' : 'view'] = d.view; sel = null; save(); closeSheet(); render(); return; }
     if (d.tabPick) { S.tab = +d.tabPick; save(); renderMain(); return; }
-    if (d.filter) { S.filter = d.filter; sel = null; save(); renderMain(); renderDetail(); return; }
+    if (d.filter) { S[S.mode === 'prof' ? 'pfilter' : 'filter'] = d.filter; sel = null; save(); renderMain(); renderDetail(); return; }
+    if (d.recipe) { sel = { kind: 'recipe', id: d.recipe }; renderDetail(); return; }
+    if (d.lnode) { sel = { kind: 'lnode', id: +d.lnode }; renderMain(); renderDetail(); return; }
     if ('close' in d) { sel = null; closeSheet(); renderMain(); return; }
     if (d.reset) {
       const P = pts();
@@ -393,6 +552,12 @@
       S.race[S.cls] = S.race[S.cls] === id ? undefined : id;
       save(); renderSummary(); renderMain(); return;
     }
+  });
+  // recipe search: redraw the list only, so the field keeps focus
+  document.addEventListener('input', e => {
+    if (e.target.id !== 'psearch') return;
+    query = e.target.value.trim();
+    $('plist').innerHTML = recipeList();
   });
   document.addEventListener('change', e => {
     if ('talented' in e.target.dataset) { S.talented = +e.target.value; save(); renderSummary(); }
