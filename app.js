@@ -48,7 +48,7 @@
     return t.replace(NUM, m => { const i = k++; return a[i] !== b[i] ? `<b class="${cls_}">${m}</b>` : m; });
   }
   const BADGE = { new: 'New', changed: 'Changed', removed: 'Removed', moved: 'Moved', sod: 'Season of Discovery' };
-  const KIND = { wording: ' · wording', skill: ' · skill-ups' };
+  const KIND = { wording: ' · wording', skill: ' · skill-ups', item: ' · item' };
   // x: the entry (origin = later expansion it was backported from; was_sod = only Season of Discovery had it)
   function badge(status, kind, x) {
     if (!status || status === 'same') return '';
@@ -362,14 +362,23 @@
       (old ? `<div class="d-text classic-text"><span class="lbl">Classic reagents</span><ul class="rg rg-old">${old.map(([id, n]) =>
         `<li>${icon(item(id).i, 20, 'faded')}${itemName(id, n)}</li>`).join('')}</ul></div>` : '');
   }
+  // result item; c = the Classic value of each fact that differs (struck through beside Forever's)
+  const ITEM_FACT = { n: 'name', q: 'quality', ilvl: 'item level', req: 'required level', armor: 'armor', stats: 'stats',
+    dmg: 'damage', speed: 'speed', use: 'effects' };
   function itemBlock(id, n) {
-    const it = item(id), d = it.d || {};
-    const lines = [d.type, d.ilvl ? `Item level ${d.ilvl}` : '', d.req ? `Requires level ${d.req}` : '', d.armor ? `${d.armor} Armor` : '']
-      .filter(Boolean).map(t => `<div>${esc(t)}</div>`).join('');
+    const it = item(id), d = it.d || {}, c = it.c || {};
+    const old = (k, v) => k in c ? `<s>${esc(c[k] == null ? 'none' : v(c[k]))}</s>` : '';
+    const fact = (k, v) => d[k] || k in c ? `<div>${esc(d[k] ? v(d[k]) : 'No ' + ITEM_FACT[k])}${old(k, v)}</div>` : '';
+    const lines = (d.type ? `<div>${esc(d.type)}</div>` : '') + fact('ilvl', v => `Item level ${v}`) + fact('req', v => `Requires level ${v}`) +
+      fact('armor', v => `${v} Armor`) + fact('dmg', v => v) + fact('speed', v => v);
+    const was = 'n' in c || 'q' in c ? `<div class="item-was">Classic: <span style="color:${QUALITY['q' in c ? c.q : it.q]}">${esc(c.n || it.n)}</span></div>` : '';
+    const list = (k, cls_) => k in c ? `<div class="item-old"><span class="lbl">Classic ${ITEM_FACT[k]}</span>${(c[k] || ['none']).map(clean).join('<br>')}</div>` : '';
     return `<div class="item"><div class="item-h">${icon(it.i, 36)}<div><div class="item-n" style="color:${qc(id)}">${esc(it.n)}${n > 1 ? ` <span class="x">×${n}</span>` : ''}</div>
-      <div class="d-sub">${lines}</div></div></div>
+      ${was}<div class="d-sub">${lines}</div></div></div>
       ${d.stats ? `<div class="item-st" title="Stat amounts derived from the item budget">${d.stats.map(esc).join('<br>')}</div>` : ''}
+      ${list('stats')}${it.round ? '<div class="item-old">Within 1 of Classic: may be rounding</div>' : ''}
       ${(d.use || []).map(u => `<div class="item-use">${clean(u)}</div>`).join('')}
+      ${list('use')}
       ${d.flavor ? `<div class="item-fl">"${clean(d.flavor)}"</div>` : ''}</div>`;
   }
   function recipeDetail(r, removed) {
@@ -386,6 +395,7 @@
     const rows = [];
     if (cl.name) rows.push(`<li>Was <b>${esc(cl.name)}</b></li>`);
     if (cl.creates) rows.push(`<li>Made ${cl.creates[0] ? itemName(cl.creates[0], cl.creates[1]) : 'no item'}</li>`);
+    if (cl.item) rows.push(`<li>Result item changed: ${Object.keys(item(r.creates).c || {}).map(k => ITEM_FACT[k]).join(', ')}</li>`);
     if (cl.skill) rows.push(`<li>Skill-ups were ${cl.skill[0]} / ${Math.floor((cl.skill[0] + cl.skill[1]) / 2)} / ${cl.skill[1]}</li>`);
     if ('desc' in cl) rows.push(`<li class="classic-text"><span class="lbl">Classic text</span>${marked(cl.desc, r.desc, 'down')}</li>`);
     return `<div class="d-head">${icon(r.icon, 48, removed ? 'faded' : '')}<div><div class="d-name">${esc(r.name)}</div>

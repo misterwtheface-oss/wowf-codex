@@ -26,12 +26,14 @@ benefits the class. Later: saved builds and equipment.
   filters as Spells. Each recipe: result item (type, level, stats, use text), reagents, tools, skill-up colours (orange
   = recipe item's skill), cast time, recipe items that teach it; diff vs Classic (name, result, reagents, skill-ups,
   text, tools); recipes that changed profession marked Moved (healing potions Alchemy -> First Aid); Forever's parked
-  "Season of Discovery" recipe groups shown last. Legacy view: the Legacy Professions tree (read-only, ranks + gates).
+  "Season of Discovery" recipe groups shown last. Result items compared with Classic (name, quality, item level,
+  required level, armor, stats, damage, speed, effects; Classic flat equip bonuses read as stats). Legacy view: the Legacy Professions tree (read-only, ranks + gates).
 - Data: extract `tools/build_codex.py` (professions: `tools/build_professions.py`) (+ Classic baseline `tools/fetch_classic.py`, wago.tools CSV of the pinned
   Classic Era build, decoded by the same `build_spells.py` with `WOWF_DATASET=classic`). App build: `python tools/build_data.py --strict`.
 
 ## Open
-- [ ] Professions: crafted-item stats not compared with Classic (no Classic item data yet); trainer recipes' learn skill is server-side.
+- [ ] Professions: trainer recipes' learn skill is server-side. Forever item stat amounts are derived from the budget
+  (a 1-point difference is flagged as possible rounding); confirm a few in game.
 - [ ] Saved builds (named, several per class) and a share link.
 - [ ] Equipment (items.json in the extract: 24,736 items, sets, suffixes).
 - [ ] Talent gate rule assumed Classic-style (points in the tiers above the node); confirm in game.
