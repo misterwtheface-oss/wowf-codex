@@ -1,0 +1,5 @@
+# The datamine workspace (../_wowf_extract) is never committed here; tools/build_data.py copies runtime artifacts only.
+__pycache__/
+*.log
+Thumbs.db
+_flow_*.html
