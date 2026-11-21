@@ -17,6 +17,10 @@ benefits the class. Later: saved builds and equipment.
   and the new Skyborne races), racials with status vs Classic, class-only versions (Gnome Eureka!, Expansive Mind,
   Undead Touch of the Grave), fit tags (Class version / Your resource / Offense / Slaying) with the data that proves
   them; Choose a race (saved per class).
+- 2026-11-21: fixes from user review: off-grid retired talent nodes dropped (Holy Priest, Hunter MM/SV), mobile header
+  wraps (info sheet was cut off), same-tier column moves not a change, tooltips never show raw tokens (single-effect
+  fallback: Contingency Plan; character-stat formulas = fixed part + "(+ attack power)"), new entries labelled by origin
+  ("from TBC / Wrath / MoP" by same-name class spell or talent in that client; "was in SoD" only as fallback).
 - Data: extract `tools/build_codex.py` (+ Classic baseline `tools/fetch_classic.py`, wago.tools CSV of the pinned
   Classic Era build, decoded by the same `build_spells.py` with `WOWF_DATASET=classic`). App build: `python tools/build_data.py --strict`.
 
