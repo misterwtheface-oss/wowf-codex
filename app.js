@@ -157,7 +157,7 @@
       const rows = [];
       if (cl.name) rows.push(`<li>Was <b>${esc(cl.name)}</b></li>`);
       if (cl.tab) rows.push(`<li>Was in <b>${esc(cl.tab)}</b></li>`);
-      if (cl.pos) rows.push(`<li>Was tier ${cl.pos[0]}, column ${cl.pos[1]} (now tier ${n.tier}, column ${n.col})</li>`);
+      if (cl.pos) rows.push(`<li>Was tier ${cl.pos[0]} (now tier ${n.tier})</li>`);
       if (cl.max) rows.push(`<li>Had ${cl.max} ranks (now ${n.max})</li>`);
       if (cl.prereq) rows.push(`<li>Required ${cl.prereq.filter(Boolean).map(esc).join(', ') || 'nothing'} (now ${n.prereq.map(p => esc(nb[p]?.name)).join(', ') || 'nothing'})</li>`);
       if (cl.ranks) rows.push(`<li class="classic-text"><span class="lbl">Classic, rank ${Math.min(Math.max(have, 1), cl.ranks.length)}</span>${marked(crank(Math.max(have, 1) - 1), n.ranks[Math.max(have, 1) - 1], 'down')}</li>`);
