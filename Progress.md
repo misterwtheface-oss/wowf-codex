@@ -25,6 +25,7 @@ benefits the class. Later: saved builds and equipment.
   Classic Era build, decoded by the same `build_spells.py` with `WOWF_DATASET=classic`). App build: `python tools/build_data.py --strict`.
 
 ## Open
+- [ ] Next (user, 2026-11-21): professions section.
 - [ ] Saved builds (named, several per class) and a share link.
 - [ ] Equipment (items.json in the extract: 24,736 items, sets, suffixes).
 - [ ] Talent gate rule assumed Classic-style (points in the tiers above the node); confirm in game.
