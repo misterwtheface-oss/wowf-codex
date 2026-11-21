@@ -147,6 +147,8 @@ def main():
             for n in nodes:
                 n["icon"] = ic(sh, n["icon"])
         c.pop("classic_tabs", None)
+        for u in c["stats"]["users"]:
+            u["icon"] = ic(sh, u["icon"])
         for sp in c["spells"] + c["removed_spells"]:
             spell_icons(sh, sp)
     for r in X["races"]:

@@ -5,7 +5,7 @@
   const X = window.CODEX;
   const FEATURES = {};
   const KEY = 'wowf-codex-v1';
-  const VIEWS = [['talents', 'Talents'], ['spells', 'Spells'], ['races', 'Races']];
+  const VIEWS = [['talents', 'Talents'], ['spells', 'Spells'], ['races', 'Races'], ['stats', 'Stats']];
   const PVIEWS = [['recipes', 'Recipes'], ['legacy', 'Legacy']];
   const MODES = [['classes', 'Classes'], ['prof', 'Professions']];
   const CLS = Object.fromEntries(X.classes.map(c => [c.token, c]));
@@ -301,6 +301,54 @@
         `<li><b>${o.classes.map(id => esc(CLASS_BY_ID[id].name)).join(', ') || 'Other classes'}</b>: ${clean(o.desc)}</li>`).join('')}</ul></div>` : ''}`;
   }
 
+  // ------------------------------------------------------------------ stats view: what each base stat gives the class
+  const STAT_NAMES = ['Strength', 'Agility', 'Stamina', 'Intellect', 'Spirit'];
+  // a user is listed under every stat it touches (Forever tags; Classic tags when Forever has none)
+  // (buffs that raise all five stats, Mark of the Wild, are listed once under "All stats")
+  const tagsOf = u => u.tags.length ? u.tags : u.classic_tags || [];
+  const allStats = u => STAT_NAMES.every(n => tagsOf(u).some(t => t[0] === n));
+  const usersOf = (st, stat) => st.users.map((u, i) => [u, i]).filter(([u]) =>
+    stat === 'all' ? allStats(u) : !allStats(u) && tagsOf(u).some(t => t[0] === stat));
+  function userRow(u, i, stat) {
+    const tg = tagsOf(u).filter(t => stat === 'all' ? t[0] === 'Strength' : t[0] === stat)
+      .map(t => `<span class="tag">${esc(stat === 'all' ? t[1].replace('Strength', 'all stats') : t[1])}</span>`).join('');
+    return `<button class="sp st-u ${u.status === 'removed' ? 'sp-rm' : ''}" data-suser="${i}">${icon(u.icon, 30, u.status === 'removed' ? 'faded' : '')}
+      <span class="sp-main"><span class="sp-name">${esc(u.name)}</span><span class="sp-sub">${u.kind === 'talent' ? 'Talent' : 'Ability'} · ${esc(u.tab)}</span>
+      <span class="tags">${tg}</span></span>${badge(u.status)}</button>`;
+  }
+  function renderStats() {
+    const c = cls(), st = c.stats, b = st.base;
+    const base = [b.health ? `Base health at 60: <b>${b.health}</b>` : '', b.mana ? `Base mana at 60: <b>${b.mana}</b>` : '',
+      b.pet_mana_regen ? `Demon mana regeneration: ${b.pet_mana_regen.pet}% of your Intellect per 5 sec (Imp ${b.pet_mana_regen.imp}%)` : '']
+      .filter(Boolean).map(x => `<span class="fact">${x}</span>`).join('');
+    return (base ? `<div class="facts st-base">${base}</div>` : '') + `<div class="stats">${st.stats.map(s => {
+      const eff = s.effects.map(e => `<li class="st-e st-${e.status}"><span>${esc(e.label)}</span>${e.value ? `<span class="st-v">${esc(e.value)}</span>` : ''}` +
+        `${e.status !== 'same' ? badge(e.status) : ''}</li>`).join('');
+      const users = usersOf(st, s.stat).map(([u, i]) => userRow(u, i, s.stat)).join('');
+      return `<article class="stat"><h3 class="stat-h">${esc(s.stat)}</h3><ul class="st-list">${eff}</ul>
+        ${s.classic_text.length ? `<div class="d-text classic-text st-ct"><span class="lbl">Classic tooltip</span>${s.classic_text.map(clean).join('<br>')}</div>` : ''}
+        ${users ? `<div class="st-users"><span class="lbl">Talents and abilities</span>${users}</div>` : ''}</article>`;
+    }).join('')}${(() => {
+      const all = usersOf(st, 'all').map(([u, i]) => userRow(u, i, 'all')).join('');
+      return all ? `<article class="stat"><h3 class="stat-h">All stats</h3><div class="st-users">${all}</div></article>` : '';
+    })()}</div>`;
+  }
+  function statUserDetail(u) {
+    const ft = u.tags.map(t => `<span class="tag fit-strong">${esc(t[1])}</span>`).join('');
+    const ct = (u.classic_tags || []).map(t => `<span class="tag">${esc(t[1])}</span>`).join('');
+    const why = u.status === 'new' ? 'Not in Classic' : u.status === 'removed' ? 'Not in Forever' :
+      u.status === 'changed' && !u.tags.length ? 'Forever kept it, but it no longer changes a stat' :
+      u.status === 'changed' && !u.classic_tags?.length ? 'Classic had it, but it did not change a stat' : '';
+    return `<div class="d-head">${icon(u.icon, 48, u.status === 'removed' ? 'faded' : '')}<div><div class="d-name">${esc(u.name)}</div>
+        <div class="d-sub">${u.kind === 'talent' ? 'Talent' : 'Ability'} · ${esc(u.tab)}</div>${badge(u.status)}</div></div>
+      ${why ? `<div class="req note">${why}.</div>` : ''}
+      ${ft ? `<div class="d-text"><span class="lbl">Stat effects</span><span class="tags">${ft}</span></div>` : ''}
+      ${u.text ? `<div class="d-text">${marked(u.text, u.classic_text)}</div>` : ''}
+      ${ct || u.classic_text ? `<div class="classic"><div class="classic-h">Classic</div>${ct ? `<div class="tags">${ct}</div>` : ''}
+        ${u.classic_text ? `<div class="d-text classic-text">${marked(u.classic_text, u.text, 'down')}</div>` : ''}</div>` : ''}
+      ${u.node ? `<button class="btn-ghost" data-goto-talent="${u.node}">Open in Talents</button>` : ''}`;
+  }
+
   // ------------------------------------------------------------------ professions (data from professions.js)
   const QUALITY = ['#9d9d9d', '#ffffff', '#1eff00', '#0070dd', '#a335ee', '#ff8000', '#e6cc80', '#00ccff'];
   const prof = () => P.professions.find(p => p.id === S.prof) || P.professions[0];
@@ -464,6 +512,7 @@
       const s = (rm ? c.removed_spells : c.spells)[i];
       return s ? spellDetail(s, rm) : '';
     }
+    if (sel.kind === 'suser') { const u = c.stats.users[sel.id]; return u ? statUserDetail(u) : ''; }
     if (sel.kind === 'racial') {
       const [rid, rm, ...name] = sel.id.split(':');
       return racialDetail(+rid, rm === 'r', name.join(':'));
@@ -515,7 +564,7 @@
       return;
     }
     m.className = 'main v-' + S.view;
-    m.innerHTML = S.view === 'talents' ? renderTalents() : S.view === 'spells' ? renderSpells() : renderRaces();
+    m.innerHTML = S.view === 'talents' ? renderTalents() : S.view === 'spells' ? renderSpells() : S.view === 'stats' ? renderStats() : renderRaces();
     m.querySelectorAll('.tree-wrap').forEach((e, i) => { e.scrollLeft = trees[i] || 0; });
     scrollTo(0, y);
   }
@@ -558,6 +607,11 @@
     }
     if (d.rmtalent) { sel = { kind: 'rmtalent', id: +d.rmtalent }; renderDetail(); return; }
     if (d.spell) { sel = { kind: 'spell', id: d.spell }; renderDetail(); return; }
+    if (d.suser) { sel = { kind: 'suser', id: +d.suser }; renderDetail(); return; }
+    if (d.gotoTalent) {
+      const id = +d.gotoTalent;
+      S.view = 'talents'; S.tab = tabOf(cls())[id] ?? S.tab; sel = { kind: 'talent', id }; save(); closeSheet(true); render(); return;
+    }
     if (d.racial) { sel = { kind: 'racial', id: d.racial }; renderDetail(); return; }
     if (d.race) {
       const id = +d.race;

@@ -28,10 +28,15 @@ benefits the class. Later: saved builds and equipment.
   text, tools); recipes that changed profession marked Moved (healing potions Alchemy -> First Aid); Forever's parked
   "Season of Discovery" recipe groups shown last. Result items compared with Classic (name, quality, item level,
   required level, armor, stats, damage, speed, effects; Classic flat equip bonuses read as stats). Legacy view: the Legacy Professions tree (read-only, ranks + gates).
-- Data: extract `tools/build_codex.py` (professions: `tools/build_professions.py`) (+ Classic baseline `tools/fetch_classic.py`, wago.tools CSV of the pinned
+- 2026-11-21: Stats view per class: each base stat's effects (attack power / ranged per point, block value, armor,
+  health and mana per point, crit / dodge / regen named) with what Classic's tooltip said (gained / lost effects
+  marked: Druid Agility -> Cat Form attack power is new), base health / mana at 60, then the talents and abilities
+  that raise or convert the stat (from their decoded effects), each compared with Classic; all-stat buffs grouped.
+- Data: extract `tools/build_codex.py` (professions: `tools/build_professions.py`, stats: `tools/build_stats.py`) (+ Classic baseline `tools/fetch_classic.py`, wago.tools CSV of the pinned
   Classic Era build, decoded by the same `build_spells.py` with `WOWF_DATASET=classic`). App build: `python tools/build_data.py --strict`.
 
 ## Open
+- [ ] Stats: crit / dodge / spell crit / regen per point are client functions with no table in the files (named, not numbered).
 - [ ] Professions: trainer recipes' learn skill is server-side. Forever item stat amounts are derived from the budget
   (a 1-point difference is flagged as possible rounding); confirm a few in game.
 - [ ] Saved builds (named, several per class) and a share link.
