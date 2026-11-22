@@ -39,6 +39,11 @@ benefits the class. Later: saved builds and equipment.
   rate, gathers, pick pocket, vendors with price, quest rewards) from the play log, and a link to the item's
   Wowhead Forever page (drops, vendors, quests) with Wowhead's own tooltip script on hover. Wowhead's robots.txt
   bars AI crawlers, so its data is linked, never copied.
+- 2026-11-21: Saved builds: above the talent trees, a list of named builds per class (talent points + Talented
+  rank, in localStorage), Save (same name overwrites, a new name adds), Delete, Share. Share link
+  `#b=<CLASS>~<talented>~<node id base36><rank>.…` (node ids, so data updates never shift it); opening one re-adds the
+  points through the calculator's own rules in tier order (unknown or not-yet-allowed ranks drop out). Phones use
+  the system share sheet, desktop copies the link.
 - Data: extract `tools/build_codex.py` (professions: `tools/build_professions.py`, stats: `tools/build_stats.py`) (+ Classic baseline `tools/fetch_classic.py`, wago.tools CSV of the pinned
   Classic Era build, decoded by the same `build_spells.py` with `WOWF_DATASET=classic`). App build: `python tools/build_data.py --strict`.
 
@@ -46,7 +51,6 @@ benefits the class. Later: saved builds and equipment.
 - [ ] Stats: crit / dodge / spell crit / regen per point are client functions with no table in the files (named, not numbered).
 - [ ] Professions: trainer recipes' learn skill is server-side. Forever item stat amounts are derived from the budget
   (a 1-point difference is flagged as possible rounding); confirm a few in game.
-- [ ] Saved builds (named, several per class) and a share link.
 - [ ] Equipment: drop sources fill only from the play log (WowfLootLog addon) or the Wowhead link; Blizzard API
   (items, auctions) waits on the user's developer key.
 - [ ] Talent gate rule assumed Classic-style (points in the tiers above the node); confirm in game.

@@ -220,3 +220,10 @@ b.down { color: var(--removed); font-weight: 700; }
 .wh { color: var(--moved); font-size: 14px; }
 .rg.sfx li { display: block; font-size: 13px; }
 .rg.sfx b { color: var(--text); font-weight: 600; }
+/* saved builds */
+.builds { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; }
+.builds select, .builds input { font: inherit; font-size: 13px; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; }
+.builds select { max-width: 45%; }
+.builds input { flex: 1 1 120px; min-width: 0; }
+.builds .btn-ghost { padding: 5px 10px; }
+.bmsg { font-size: 12px; color: var(--new); }

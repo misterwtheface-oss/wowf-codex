@@ -89,11 +89,70 @@
   }
   function change(n, ti, d) {
     if (d > 0 ? !canAdd(n, ti) : !canRemove(n, ti)) return false;
+    bMsg = '';
     const P = pts();
     P[n.id] = (P[n.id] || 0) + d;
     if (!P[n.id]) delete P[n.id];
     save();
     return true;
+  }
+
+  // ------------------------------------------------------------------ saved builds and share links
+  // builds per class: {n: name, p: {node id: rank}, t: Talented rank}; a share link carries the same as
+  // #b=<CLASS>~<talented>~<node id base36><rank>.<...> (node ids, so a data update never shifts a link)
+  const builds = () => (S.builds ||= {})[S.cls] ||= [];
+  let bName = '', bMsg = '';
+  const samePts = (a, b) => { const k = Object.keys(a); return k.length === Object.keys(b).length && k.every(x => a[x] === b[x]); };
+  const curBuild = () => builds().findIndex(b => samePts(b.p, pts()) && (b.t || 0) === (S.talented || 0));
+  function buildsBar() {
+    const list = builds(), cur = curBuild();
+    return `<div class="builds"><select data-build aria-label="Saved builds"><option value="">${list.length ? 'Saved builds' : 'No saved builds'}</option>${list.map((b, i) =>
+      `<option value="${i}" ${i === cur ? 'selected' : ''}>${esc(b.n)}</option>`).join('')}</select>
+      <input id="bname" type="text" maxlength="40" placeholder="Build name" value="${esc(cur >= 0 ? list[cur].n : bName)}">
+      <button class="btn-ghost" data-bsave ${total() ? '' : 'disabled'}>Save</button>
+      ${cur >= 0 ? '<button class="btn-ghost" data-bdel>Delete</button>' : ''}
+      <button class="btn-ghost" data-bshare ${total() ? '' : 'disabled'}>Share</button>
+      ${bMsg ? `<span class="bmsg">${esc(bMsg)}</span>` : ''}</div>`;
+  }
+  function saveBuild() {
+    const name = ($('bname')?.value || '').trim() || `${cls().name} ${builds().length + 1}`;
+    const list = builds(), b = { n: name, p: { ...pts() }, t: S.talented || 0 };
+    const at = list.findIndex(x => x.n === name);
+    if (at >= 0) list[at] = b; else list.push(b);
+    bName = name; bMsg = at >= 0 ? 'Updated' : 'Saved';
+    save();
+  }
+  function loadBuild(i) {
+    const b = builds()[i];
+    if (!b) return;
+    S.pts[S.cls] = { ...b.p }; S.talented = b.t || 0; bName = b.n; bMsg = '';
+    save();
+  }
+  const shareURL = () => location.origin + location.pathname + '#b=' + [S.cls, S.talented || 0,
+    Object.entries(pts()).map(([id, r]) => (+id).toString(36) + r).join('.')].join('~');
+  async function shareBuild() {
+    const url = shareURL();
+    try {
+      if (navigator.share && !wide()) { await navigator.share({ title: `${cls().name} build`, url }); bMsg = ''; }
+      else { await navigator.clipboard.writeText(url); bMsg = 'Link copied'; }
+    } catch (e) { if (e?.name !== 'AbortError') { bMsg = ''; prompt('Copy this link', url); } }
+    renderMain();
+  }
+  // open a shared link: points are re-added rank by rank in tier order through the normal rules, so a link can
+  // never hold a build the calculator would refuse (unknown or over-limit ranks drop out)
+  function openShared() {
+    const m = location.hash.match(/^#b=([A-Z]+)~(\d)~([0-9a-z.]*)$/);
+    if (!m || !CLS[m[1]]) return;
+    history.replaceState(history.state, '', location.pathname + location.search);
+    Object.assign(S, { mode: 'classes', cls: m[1], view: 'talents', talented: +m[2] });
+    S.pts[S.cls] = {};
+    const nb = nodeById(cls()), ti = tabOf(cls());
+    const want = m[3].split('.').filter(Boolean).map(x => [parseInt(x.slice(0, -1), 36), +x.slice(-1)]).filter(([id]) => nb[id])
+      .sort((a, b) => nb[a[0]].tier - nb[b[0]].tier);
+    for (let pass = 0; pass < 3; pass++)  // a prerequisite listed after its dependant is filled on a later pass
+      for (const [id, r] of want) while ((pts()[id] || 0) < r && change(nb[id], ti[id], 1));
+    bName = ''; bMsg = 'Shared build';
+    save();
   }
 
   // ------------------------------------------------------------------ chrome
@@ -165,7 +224,7 @@
     const c = cls();
     const tabs = `<nav class="tabs">${c.tabs.map((t, i) =>
       `<button class="tab ${S.tab === i ? 'on' : ''}" data-tab-pick="${i}">${icon(t.icon, 20)}<span>${esc(t.name)}</span><b>${tabPts(i)}</b></button>`).join('')}</nav>`;
-    return tabs + `<div class="trees">${c.tabs.map((t, i) => `<div class="tree-wrap ${S.tab === i ? 'on' : ''}">${treeHTML(t, i)}</div>`).join('')}</div>`;
+    return buildsBar() + tabs + `<div class="trees">${c.tabs.map((t, i) => `<div class="tree-wrap ${S.tab === i ? 'on' : ''}">${treeHTML(t, i)}</div>`).join('')}</div>`;
   }
 
   function talentDetail(n, ti) {
@@ -690,6 +749,9 @@
     if (d.cls) { S.cls = d.cls; S.tab = Math.min(S.tab, 2); sel = null; save(); closeSheet(); render(); return; }
     if (d.prof) { S.prof = +d.prof; query = ''; sel = null; save(); closeSheet(); render(); return; }
     if (d.view) { S[S.mode === 'prof' ? 'pview' : 'view'] = d.view; sel = null; save(); closeSheet(); render(); return; }
+    if ('bsave' in d) { saveBuild(); renderMain(); return; }
+    if ('bdel' in d) { const i = curBuild(); if (i >= 0 && confirm(`Delete ${builds()[i].n}?`)) { builds().splice(i, 1); bName = ''; bMsg = 'Deleted'; save(); } renderMain(); return; }
+    if ('bshare' in d) { shareBuild(); return; }
     if (d.tabPick) { S.tab = +d.tabPick; save(); renderMain(); return; }
     if (d.slot) { S.eslot = d.slot; eQuery = ''; eShown = 150; sel = null; save(); closeSheet(); render(); return; }
     if ('esub' in d) { S.esub = d.esub; eShown = 150; save(); renderMain(); return; }
@@ -733,6 +795,7 @@
   });
   // recipe / equipment search: redraw the list only, so the field keeps focus
   document.addEventListener('input', e => {
+    if (e.target.id === 'bname') { bName = e.target.value; return; }
     if (e.target.id === 'esearch') { eQuery = e.target.value.trim(); eShown = 150; $('elist').innerHTML = equipList(); return; }
     if (e.target.id !== 'psearch') return;
     query = e.target.value.trim();
@@ -740,6 +803,7 @@
   });
   document.addEventListener('change', e => {
     if ('talented' in e.target.dataset) { S.talented = +e.target.value; save(); renderSummary(); }
+    if ('build' in e.target.dataset && e.target.value !== '') { loadBuild(+e.target.value); sel = null; render(); }
   });
   // right-click removes a point (desktop)
   document.addEventListener('contextmenu', e => {
@@ -755,5 +819,6 @@
   let wasWide = wide();
   addEventListener('resize', () => { if (wide() !== wasWide) { wasWide = wide(); renderDetail(); } });
 
+  openShared();
   render();
 })();
