@@ -73,11 +73,14 @@
   function blockers(n, ti, P = pts()) {
     const out = [];
     if (n.gate && above(ti, n.tier, P) < n.gate) out.push(`Requires ${n.gate} points in ${cls().tabs[ti].name}`);
-    const nb = nodeById(cls());
+    const nb = nodeById(cls()), any = n.any || [];
     for (const p of n.prereq) {
       const q = nb[p];
-      if (q && (P[p] || 0) < q.max) out.push(`Requires ${q.name} (${q.max}/${q.max})`);
+      if (q && !any.includes(p) && (P[p] || 0) < q.max) out.push(`Requires ${q.name} (${q.max}/${q.max})`);
     }
+    // the game's "sufficient" links: any one of them, maxed, is enough
+    const opts = any.map(p => nb[p]).filter(Boolean);
+    if (opts.length && !opts.some(q => (P[q.id] || 0) >= q.max)) out.push(`Requires ${opts.map(q => `${q.name} (${q.max}/${q.max})`).join(' or ')}`);
     return out;
   }
   const canAdd = (n, ti) => total() < cls().points && (pts()[n.id] || 0) < n.max && !blockers(n, ti).length;
@@ -240,7 +243,7 @@
       if (cl.tab) rows.push(`<li>Was in <b>${esc(cl.tab)}</b></li>`);
       if (cl.pos) rows.push(`<li>Was tier ${cl.pos[0]} (now tier ${n.tier})</li>`);
       if (cl.max) rows.push(`<li>Had ${cl.max} ranks (now ${n.max})</li>`);
-      if (cl.prereq) rows.push(`<li>Required ${cl.prereq.filter(Boolean).map(esc).join(', ') || 'nothing'} (now ${n.prereq.map(p => esc(nb[p]?.name)).join(', ') || 'nothing'})</li>`);
+      if (cl.prereq) rows.push(`<li>Required ${cl.prereq.filter(Boolean).map(esc).join(', ') || 'nothing'} (now ${n.prereq.map(p => esc(nb[p]?.name)).join(n.any ? ' or ' : ', ') || 'nothing'})</li>`);
       if (cl.ranks) rows.push(`<li class="classic-text"><span class="lbl">Classic, rank ${Math.min(Math.max(have, 1), cl.ranks.length)}</span>${marked(crank(Math.max(have, 1) - 1), n.ranks[Math.max(have, 1) - 1], 'down')}</li>`);
       classic = `<div class="classic"><div class="classic-h">Compared with Classic${cl.kind === 'wording' ? ' (wording only)' : ''}</div><ul>${rows.join('')}</ul></div>`;
     } else if (n.status === 'new') {
