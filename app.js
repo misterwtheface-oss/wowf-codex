@@ -1,5 +1,6 @@
-/* WoW Forever Codex: classes (talent calculator, spell list, races and racials) and professions (recipes, Legacy
-   Professions tree), every entry compared with Classic Era. Profession data (professions.js) loads on first use. */
+/* WoW Forever Codex: classes (talent calculator, spell list, races and racials), professions (recipes, Legacy
+   Professions tree) and equipment, every entry compared with Classic Era. Profession data (professions.js) and
+   equipment data (equipment.js) load on first use. */
 (() => {
   'use strict';
   const X = window.CODEX;
@@ -7,7 +8,7 @@
   const KEY = 'wowf-codex-v1';
   const VIEWS = [['talents', 'Talents'], ['spells', 'Spells'], ['races', 'Races'], ['stats', 'Stats']];
   const PVIEWS = [['recipes', 'Recipes'], ['legacy', 'Legacy']];
-  const MODES = [['classes', 'Classes'], ['prof', 'Professions']];
+  const MODES = [['classes', 'Classes'], ['prof', 'Professions'], ['equip', 'Equipment']];
   const CLS = Object.fromEntries(X.classes.map(c => [c.token, c]));
   const RACE = Object.fromEntries(X.races.map(r => [r.id, r]));
   const CLASS_BY_ID = Object.fromEntries(X.classes.map(c => [c.id, c]));
@@ -17,7 +18,7 @@
 
   // ------------------------------------------------------------------ state
   const S = Object.assign({ cls: X.classes[0].token, view: 'talents', tab: 0, pts: {}, race: {}, filter: 'all',
-    mode: 'classes', prof: null, pview: 'recipes', pfilter: 'all' },
+    mode: 'classes', prof: null, pview: 'recipes', pfilter: 'all', eslot: 'head', efilter: 'all', esub: '', eq: 0 },
     JSON.parse(localStorage.getItem(KEY) || '{}'));
   if (!CLS[S.cls]) S.cls = X.classes[0].token;
   let sel = null; // {kind, id}
@@ -101,17 +102,19 @@
   }
   function renderClasses() {
     if (S.mode === 'prof') return renderProfs();
+    if (S.mode === 'equip') return renderSlots();
     $('classes').innerHTML = X.classes.map(c =>
       `<button class="cls ${c.token === S.cls ? 'on' : ''}" data-cls="${c.token}" style="--cc:${c.color}" title="${esc(c.name)}">` +
       `${icon(c.icon, 30)}<span>${esc(c.name)}</span></button>`).join('');
     document.documentElement.style.setProperty('--cc', cls().color);
   }
   function renderViews() {
+    if (S.mode === 'equip') { $('views').innerHTML = ''; return; }
     const [list, cur] = S.mode === 'prof' ? [PVIEWS, S.pview] : [VIEWS, S.view];
     $('views').innerHTML = list.map(([k, l]) => `<button class="view ${cur === k ? 'on' : ''}" data-view="${k}">${l}</button>`).join('');
   }
   function renderSummary() {
-    if (S.mode === 'prof') { $('summary').innerHTML = ''; return; }
+    if (S.mode !== 'classes') { $('summary').innerHTML = ''; return; }
     const c = cls(), t = total(), race = RACE[S.race[S.cls]];
     // level needed for t points: Legacy Talented ranks hand out the first points earlier, then one per level
     const tal = c.talented.slice(0, S.talented || 0);
@@ -201,6 +204,8 @@
 
   // ------------------------------------------------------------------ spells view
   const FILTERS = [['all', 'All'], ['new', 'New'], ['changed', 'Changed'], ['same', 'Unchanged'], ['removed', 'Removed']];
+  const chipRow = (list, cur, attr) => `<nav class="chips">${list.map(([k, l]) =>
+    `<button class="chip ${cur === k ? 'on' : ''}" data-${attr}="${esc(k)}">${esc(l)}</button>`).join('')}</nav>`;
   function spellRow(s, i, removed) {
     const top = s.ranks[s.ranks.length - 1];
     const lv = s.ranks[0].level, nr = s.ranks.length;
@@ -218,7 +223,7 @@
   }
   function renderSpells() {
     const c = cls(), f = S.filter;
-    const chips = `<nav class="chips">${FILTERS.map(([k, l]) => `<button class="chip ${f === k ? 'on' : ''}" data-filter="${k}">${l}</button>`).join('')}</nav>`;
+    const chips = chipRow(FILTERS, f, 'filter');
     if (f === 'removed') {
       return chips + `<div class="sp-list">${c.removed_spells.map((s, i) => spellRow(s, i, true)).join('') || '<p class="empty">None</p>'}</div>`;
     }
@@ -352,15 +357,19 @@
   // ------------------------------------------------------------------ professions (data from professions.js)
   const QUALITY = ['#9d9d9d', '#ffffff', '#1eff00', '#0070dd', '#a335ee', '#ff8000', '#e6cc80', '#00ccff'];
   const prof = () => P.professions.find(p => p.id === S.prof) || P.professions[0];
-  const item = id => P.items[id] || { n: `Item ${id}`, q: 1, i: null };
+  const item = id => E?.byId[id] || P?.items[id] || { n: `Item ${id}`, q: 1, i: null };
   const qc = id => QUALITY[item(id).q] || QUALITY[1];
-  function loadProf(done) {
-    if (P) return done();
+  // a lazily loaded file's icon sheets sit at fixed indices (sheet0 from the build), whatever loads first
+  const placeSheets = D => D.sheets.forEach((sh, i) => { X.sheets[D.sheet0 + i] = sh; });
+  function loadScript(src, onload, what) {
     const sc = document.createElement('script');
-    sc.src = X.prof_src;
-    sc.onload = () => { P = window.PROF; X.sheets.push(...P.sheets); done(); };
-    sc.onerror = () => { $('main').innerHTML = '<p class="empty">Professions could not load. Check the connection and reload.</p>'; };
+    sc.src = src;
+    sc.onload = onload;
+    sc.onerror = () => { $('main').innerHTML = `<p class="empty">${what} could not load. Check the connection and reload.</p>`; };
     document.head.appendChild(sc);
+  }
+  function loadProf(done) {
+    loadScript(X.prof_src, () => { P = window.PROF; placeSheets(P); done(); }, 'Professions');
   }
   function renderProfs() {
     if (!P) { $('classes').innerHTML = ''; return; }
@@ -402,7 +411,7 @@
   }
   function renderRecipes() {
     const p = prof(), f = S.pfilter;
-    const chips = `<nav class="chips">${FILTERS.map(([k, l]) => `<button class="chip ${f === k ? 'on' : ''}" data-filter="${k}">${l}</button>`).join('')}</nav>`;
+    const chips = chipRow(FILTERS, f, 'filter');
     const head = p.new || p.desc ? `<p class="p-desc">${p.new ? badge('new').replace('New', 'New profession') + ' ' : ''}${esc(p.desc)}</p>` : '';
     return head + chips + `<input class="search" id="psearch" type="search" placeholder="Search recipes, results, reagents" value="${esc(query)}">` +
       `<div id="plist">${recipeList()}</div>`;
@@ -487,9 +496,99 @@
       <div class="classic"><div class="classic-h">Not in Classic: the Legacy System is new in Forever</div></div>`;
   }
 
+  // ------------------------------------------------------------------ equipment (data from equipment.js)
+  // drops, vendors and quests are server-side: each item links to its Wowhead Forever page (Wowhead's own tooltip
+  // script, the embed they publish for other sites) and shows what the play log saw (extract tools/read_lootlog.py)
+  const ESTATUS = FILTERS.slice(0, 4);
+  const QNAMES = ['Poor', 'Common', 'Uncommon', 'Rare', 'Epic', 'Legendary', 'Artifact'];
+  const WH = id => `https://www.wowhead.com/forever/item=${id}`;
+  let E = null, eQuery = '', eShown = 150;
+  function loadEquip(done) {
+    loadScript(X.equip_src, () => {
+      E = window.EQUIP;
+      E.byId = Object.fromEntries(E.items.map(o => [o.id, o]));
+      placeSheets(E);
+      if (!window.$WowheadPower) {
+        window.whTooltips = { colorLinks: false, iconizeLinks: false, renameLinks: false };
+        const w = document.createElement('script');
+        w.src = 'https://wow.zamimg.com/js/tooltips.js';
+        document.head.appendChild(w);
+      }
+      done();
+    }, 'Equipment');
+  }
+  const eslot = () => E.slots.find(s => s[0] === S.eslot) || E.slots[0];
+  function renderSlots() {
+    if (!E) { $('classes').innerHTML = ''; return; }
+    $('classes').innerHTML = E.slots.map(([k, l]) =>
+      `<button class="cls slot ${k === eslot()[0] ? 'on' : ''}" data-slot="${k}"><span>${esc(l)}</span></button>`).join('');
+    document.documentElement.style.setProperty('--cc', 'var(--gold)');
+  }
+  const money = c => [[Math.floor(c / 10000), 'g'], [Math.floor(c / 100) % 100, 's'], [c % 100, 'c']]
+    .filter(([v], i, a) => v || (i === 2 && !a[0][0] && !a[1][0])).map(([v, u]) => `${v}${u}`).join(' ');
+  function eMatches(o) {
+    if (S.efilter !== 'all' && o.st !== S.efilter) return false;
+    if (S.esub && (o.sub || '') !== S.esub) return false;
+    if (o.q < (S.eq || 0)) return false;
+    if (!eQuery) return true;
+    const q = eQuery.toLowerCase(), has = t => t.toLowerCase().includes(q);
+    return has(o.n) || (o.d?.stats || []).some(has) || (o.d?.use || []).some(has);
+  }
+  function equipRow(o) {
+    const d = o.d || {};
+    const sub = [d.ilvl ? `iLvl ${d.ilvl}` : '', d.req ? `Req ${d.req}` : '', o.sub, o.set ? 'Set' : '', o.seen ? 'Seen in play' : '']
+      .filter(Boolean).map(esc).join(' · ');
+    return `<button class="sp" data-equip="${o.id}">${icon(o.i, 36)}<span class="sp-main"><span class="sp-name" style="color:${QUALITY[o.q] || QUALITY[1]}">${esc(o.n)}</span>
+      <span class="sp-sub">${sub}</span></span>${badge(o.st === 'same' ? null : o.st)}</button>`;
+  }
+  function equipList() {
+    const list = E.items.filter(o => o.s === eslot()[0] && eMatches(o));
+    return (list.length ? `<div class="sp-list">${list.slice(0, eShown).map(equipRow).join('')}</div>` : '<p class="empty">None</p>') +
+      (list.length > eShown ? `<button class="chip more" data-more>Show more (${list.length - eShown} left)</button>` : '');
+  }
+  function renderEquip() {
+    const inSlot = E.items.filter(o => o.s === eslot()[0]);
+    const subs = [...new Set(inSlot.map(o => o.sub).filter(Boolean))].sort();
+    if (S.esub && !subs.includes(S.esub)) S.esub = '';
+    const qs = [...new Set(inSlot.map(o => o.q))].sort();
+    const qcur = qs.includes(S.eq) ? S.eq : qs[0];
+    return chipRow(ESTATUS, S.efilter, 'filter') +
+      (subs.length > 1 ? chipRow([['', 'All types'], ...subs.map(s => [s, s])], S.esub, 'esub') : '') +
+      chipRow(qs.map(q => [String(q), q === qs[0] ? 'Any quality' : QNAMES[q] + '+']), String(qcur), 'eq') +
+      `<input class="search" id="esearch" type="search" placeholder="Search names, stats, effects" value="${esc(eQuery)}">` +
+      `<div id="elist">${equipList()}</div>`;
+  }
+  function equipDetail(o) {
+    const st = E.sets[o.set], sx = o.sfx != null ? E.sfx[o.sfx] : null;
+    const facts = [o.tag, o.bind, o.unique ? 'Unique' : '', o.cls ? 'Classes: ' + o.cls.join(', ') : '', o.sell ? 'Sells for ' + money(o.sell) : '']
+      .filter(Boolean).map(f => `<span class="fact">${esc(f)}</span>`).join('');
+    const note = o.server ? '<div class="req note">Only in the data the server sends at login, not in the shipped files.</div>' : '';
+    const cmp = o.st === 'new' ? 'Not in Classic: no Classic item has this id' : o.st === 'same' ? 'Same as Classic' : 'Changed from Classic (struck-through values)';
+    return `${itemBlock(o.id, 1)}${note}<div class="facts">${facts}</div>
+      ${st ? `<div class="d-text"><span class="lbl">${esc(st.n)}</span><ul class="rg">${st.items.map(([id, n]) =>
+        `<li>${E.byId[id] ? `<button class="lnk" data-equip="${id}" style="color:${QUALITY[E.byId[id].q]}">${esc(n)}</button>` : esc(n)}</li>`).join('')}</ul>
+        ${st.bonus.map(([n, t]) => `<div class="item-use">(${n}) Set: ${clean(t)}</div>`).join('')}</div>` : ''}
+      ${sx ? `<div class="d-text"><span class="lbl">Random suffixes</span><ul class="rg sfx">${sx.map(([n, s]) =>
+        `<li><b>${esc(n)}</b> ${esc(s.join(', '))}</li>`).join('')}</ul></div>` : ''}
+      ${o.seen ? seenBlock(o.seen) : ''}
+      <div class="d-text"><span class="lbl">Where it comes from</span>
+        <a class="wh" href="${WH(o.id)}" target="_blank" rel="noopener">Drops, vendors and quests on Wowhead</a></div>
+      <div class="classic"><div class="classic-h">${cmp}</div></div>`;
+  }
+  // play log (read_lootlog.py): drops / gathers / picks [source, zone, times, of loots], vendors [name, zone, price], quests [title]
+  function seenBlock(s) {
+    const got = (how, list) => (list || []).map(([n, z, k, of]) =>
+      `<li>${how} <b>${esc(n)}</b>${z ? ` in ${esc(z)}` : ''}: ${k} of ${of} (${Math.round(100 * k / of)}%)</li>`);
+    const rows = [...got('Dropped by', s.drops), ...got('Gathered from', s.gathers), ...got('Pick-pocketed from', s.picks),
+      ...(s.vendors || []).map(([n, z, p]) => `<li>Sold by <b>${esc(n)}</b>${z ? ` in ${esc(z)}` : ''}${p ? ` for ${money(p)}` : ''}</li>`),
+      ...(s.quests || []).map(([t]) => `<li>Reward from <b>${esc(t)}</b></li>`)];
+    return `<div class="d-text"><span class="lbl">Seen in play</span><ul class="rg">${rows.join('')}</ul></div>`;
+  }
+
   // ------------------------------------------------------------------ detail (side panel on wide screens, sheet on phones)
   function detailHTML() {
     if (!sel) return '';
+    if (sel.kind === 'equip') { const o = E.byId[sel.id]; return o ? equipDetail(o) : ''; }
     if (sel.kind === 'recipe') {
       const rm = sel.id[0] === 'r', r = (rm ? prof().removed : prof().recipes)[+sel.id.slice(1)];
       return r ? recipeDetail(r, rm) : '';
@@ -521,9 +620,10 @@
   }
   function renderDetail() {
     const html = detailHTML();
+    if (html && sel?.kind === 'equip') setTimeout(() => window.$WowheadPower?.refreshLinks?.(), 0);
     if (wide()) {
       const el = $('detail'), top = el.scrollTop;
-      el.innerHTML = html || `<div class="d-empty">${esc(S.mode === 'prof' ? (P ? prof().name : '') : cls().name)}</div>`;
+      el.innerHTML = html || `<div class="d-empty">${esc(S.mode === 'prof' ? (P ? prof().name : '') : S.mode === 'equip' ? (E ? eslot()[1] : '') : cls().name)}</div>`;
       el.scrollTop = top;
       closeSheet(true);
     } else {
@@ -563,6 +663,12 @@
       scrollTo(0, y);
       return;
     }
+    if (S.mode === 'equip') {
+      m.className = 'main v-equip';
+      m.innerHTML = E ? renderEquip() : '<p class="empty">Loading…</p>';
+      scrollTo(0, y);
+      return;
+    }
     m.className = 'main v-' + S.view;
     m.innerHTML = S.view === 'talents' ? renderTalents() : S.view === 'spells' ? renderSpells() : S.view === 'stats' ? renderStats() : renderRaces();
     m.querySelectorAll('.tree-wrap').forEach((e, i) => { e.scrollLeft = trees[i] || 0; });
@@ -571,6 +677,7 @@
   function render() {
     renderModes(); renderClasses(); renderViews(); renderSummary(); renderMain(); renderDetail();
     if (S.mode === 'prof' && !P) loadProf(render);
+    if (S.mode === 'equip' && !E) loadEquip(render);
   }
 
   // ------------------------------------------------------------------ events
@@ -584,7 +691,12 @@
     if (d.prof) { S.prof = +d.prof; query = ''; sel = null; save(); closeSheet(); render(); return; }
     if (d.view) { S[S.mode === 'prof' ? 'pview' : 'view'] = d.view; sel = null; save(); closeSheet(); render(); return; }
     if (d.tabPick) { S.tab = +d.tabPick; save(); renderMain(); return; }
-    if (d.filter) { S[S.mode === 'prof' ? 'pfilter' : 'filter'] = d.filter; sel = null; save(); renderMain(); renderDetail(); return; }
+    if (d.slot) { S.eslot = d.slot; eQuery = ''; eShown = 150; sel = null; save(); closeSheet(); render(); return; }
+    if ('esub' in d) { S.esub = d.esub; eShown = 150; save(); renderMain(); return; }
+    if (d.eq) { S.eq = +d.eq; eShown = 150; save(); renderMain(); return; }
+    if ('more' in d) { eShown += 300; $('elist').innerHTML = equipList(); return; }
+    if (d.equip) { sel = { kind: 'equip', id: +d.equip }; renderDetail(); return; }
+    if (d.filter) { S[S.mode === 'prof' ? 'pfilter' : S.mode === 'equip' ? 'efilter' : 'filter'] = d.filter; eShown = 150; sel = null; save(); renderMain(); renderDetail(); return; }
     if (d.recipe) { sel = { kind: 'recipe', id: d.recipe }; renderDetail(); return; }
     if (d.lnode) { sel = { kind: 'lnode', id: +d.lnode }; renderMain(); renderDetail(); return; }
     if ('close' in d) { sel = null; closeSheet(); renderMain(); return; }
@@ -619,8 +731,9 @@
       save(); renderSummary(); renderMain(); return;
     }
   });
-  // recipe search: redraw the list only, so the field keeps focus
+  // recipe / equipment search: redraw the list only, so the field keeps focus
   document.addEventListener('input', e => {
+    if (e.target.id === 'esearch') { eQuery = e.target.value.trim(); eShown = 150; $('elist').innerHTML = equipList(); return; }
     if (e.target.id !== 'psearch') return;
     query = e.target.value.trim();
     $('plist').innerHTML = recipeList();

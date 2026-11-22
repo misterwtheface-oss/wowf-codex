@@ -4,7 +4,7 @@
 
 Input : ../_wowf_extract/data/entities/codex.json (tools/build_codex.py in the extract)
         ../_wowf_extract/assets/{icons,atlas/members,talents} (tools/build_assets.py in the extract)
-Output: data.js (window.CODEX), professions.js (window.PROF, loaded on demand), assets/icons/<sheet>.webp (64 px
+Output: data.js (window.CODEX), professions.js (window.PROF) and equipment.js (window.EQUIP), both loaded on demand, assets/icons/<sheet>.webp (64 px
         icon sheets: one shared, one per class, one per profession), assets/talents/<background>.webp
 --strict fails on any missing asset instead of reporting it (rule A-provenance-guards).
 """
@@ -103,11 +103,28 @@ def professions(P, first):
     for it in items.values():
         if isinstance(it.get("i"), str):
             it["i"] = None
-    P["sheets"] = [s.save() for s in sheets]
+    P["sheets"], P["sheet0"] = [s.save() for s in sheets], first
     out = os.path.join(APP, "professions.js")
     with open(out, "w", encoding="utf-8", newline="\n") as f:
         f.write("window.PROF=" + json.dumps(P, ensure_ascii=False, separators=(",", ":")) + ";\n")
     print("professions.js", os.path.getsize(out), "sheets", [(s.name, len(s.cells)) for s in sheets])
+    return rel(out)
+
+
+def equipment(E, first):
+    """equipment.js (window.EQUIP), loaded by the app only when Equipment opens. One icon sheet per slot group, so a
+    page only fetches the icons of the slot shown (sheet indices continue after professions.js's)."""
+    sheets, ix = [], {}
+    for k, _ in E["slots"]:
+        ix[k] = Sheet("equip-" + k, first + len(sheets))
+        sheets.append(ix[k])
+    for o in E["items"]:
+        o["i"] = ix[o["s"]].add(("icon", o["i"])) if o.get("i") else None
+    E["sheets"], E["sheet0"] = [s.save() for s in sheets], first
+    out = os.path.join(APP, "equipment.js")
+    with open(out, "w", encoding="utf-8", newline="\n") as f:
+        f.write("window.EQUIP=" + json.dumps(E, ensure_ascii=False, separators=(",", ":")) + ";\n")
+    print("equipment.js", os.path.getsize(out), "sheets", [(s.name, len(s.cells)) for s in sheets])
     return rel(out)
 
 
@@ -158,7 +175,9 @@ def main():
             for v in g["variants"]:
                 v.pop("icon", None)
     X["sheets"] = [s.save() for s in sheets]
-    X["prof_src"] = professions(X.pop("professions"), len(sheets))
+    P = X.pop("professions")
+    X["prof_src"] = professions(P, len(sheets))
+    X["equip_src"] = equipment(X.pop("equipment"), len(sheets) + len(P["sheets"]))
     out = os.path.join(APP, "data.js")
     with open(out, "w", encoding="utf-8", newline="\n") as f:
         f.write("window.CODEX=" + json.dumps(X, ensure_ascii=False, separators=(",", ":")) + ";\n")

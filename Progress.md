@@ -32,6 +32,13 @@ benefits the class. Later: saved builds and equipment.
   health and mana per point, crit / dodge / regen named) with what Classic's tooltip said (gained / lost effects
   marked: Druid Agility -> Cat Form attack power is new), base health / mana at 60, then the talents and abilities
   that raise or convert the stat (from their decoded effects), each compared with Classic; all-stat buffs grouped.
+- 2026-11-21: Equipment (third top switch; data in `equipment.js`, loaded on first open, one icon sheet per slot
+  group). 11,895 wearable items in 17 slot groups; filters status vs Classic / armor or weapon type / minimum quality,
+  search names, stats, effects. Detail: the shared item block (Classic values struck through), binding, classes,
+  sell price, server-only marker, item set with pieces and bonuses, random suffixes, "Seen in play" (drops with
+  rate, gathers, pick pocket, vendors with price, quest rewards) from the play log, and a link to the item's
+  Wowhead Forever page (drops, vendors, quests) with Wowhead's own tooltip script on hover. Wowhead's robots.txt
+  bars AI crawlers, so its data is linked, never copied.
 - Data: extract `tools/build_codex.py` (professions: `tools/build_professions.py`, stats: `tools/build_stats.py`) (+ Classic baseline `tools/fetch_classic.py`, wago.tools CSV of the pinned
   Classic Era build, decoded by the same `build_spells.py` with `WOWF_DATASET=classic`). App build: `python tools/build_data.py --strict`.
 
@@ -40,6 +47,7 @@ benefits the class. Later: saved builds and equipment.
 - [ ] Professions: trainer recipes' learn skill is server-side. Forever item stat amounts are derived from the budget
   (a 1-point difference is flagged as possible rounding); confirm a few in game.
 - [ ] Saved builds (named, several per class) and a share link.
-- [ ] Equipment (items.json in the extract: 24,736 items, sets, suffixes).
+- [ ] Equipment: drop sources fill only from the play log (WowfLootLog addon) or the Wowhead link; Blizzard API
+  (items, auctions) waits on the user's developer key.
 - [ ] Talent gate rule assumed Classic-style (points in the tiers above the node); confirm in game.
 - [ ] Spell values are rank base values (no level growth, no spell power); trainer lists and costs are server-side.
